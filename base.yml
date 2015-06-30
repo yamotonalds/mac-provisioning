@@ -1,0 +1,107 @@
+---
+- hosts: mac
+  sudo: no
+  gather_facts: no
+  vars:
+    homebrew_path_prefix: /usr/local/bin
+    homebrew_taps:
+      - homebrew/binary
+      - homebrew/dupes
+      - caskroom/cask
+    homebrew_packages:
+      - { name: readline }
+      - { name: openssl }
+      - { name: openssl, state: linked, install_options: force }
+      - { name: git }
+      - { name: tree }
+      - { name: wget }
+      - { name: jq }
+      - { name: rbenv }
+      - { name: ruby-build }
+      - { name: mysql }
+      - { name: sqlite }
+      - { name: redis }
+      - { name: imagemagick }
+      - { name: rlwrap }
+    homebrew_cask_packages:
+      - { name: google-chrome }
+      - { name: google-japanese-ime }
+      - { name: java }
+      - { name: skype }
+      - { name: slack }
+      - { name: skitch }
+      - { name: seashore }
+      - { name: vagrant }
+      - { name: virtualbox }
+      - { name: dropbox }
+      - { name: alfred }
+      - { name: cheatsheet }
+      - { name: evernote }
+      - { name: flip4mac }
+      - { name: keka }
+      - { name: sequel-pro }
+      - { name: sublime-text }
+      - { name: atom }
+      - { name: iterm2 }
+      - { name: xtrafinder }
+      - { name: vlc }
+      - { name: xmind }
+
+  tasks:
+    - name: user の取得
+      shell: whoami
+      register: current_user
+    - name: group の取得
+      shell: groups | cut -f1 -d ' '
+      register: current_group
+
+    - name: homebrew の install
+      shell: ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+      args:
+        creates: "{{ homebrew_path_prefix }}/brew"
+
+    - name: homebrew の tap リポジトリを追加
+      homebrew_tap: tap={{ item }} state=present
+      with_items: homebrew_taps
+
+    - name: homebrew をアップデート
+      homebrew: update_homebrew=yes
+
+    # brew
+    - name: brew パッケージをインストール
+      homebrew: >
+        name={{ item.name }}
+        state={{ item.state | default('latest') }}
+        install_options={{
+          item.install_options | default() | join(',')
+          if item.install_options is not string
+          else item.install_options
+        }}
+      with_items: homebrew_packages
+      register: brew_result
+    - name: brew パッケージの情報保存先ディレクトリを作成
+      file: path=brew_info state=directory
+    - name: brew パッケージの情報を保存
+      shell: "{{ homebrew_path_prefix }}/brew info {{ item }} > brew_info/{{ item }}"
+      with_items: brew_result.results | selectattr('changed') | map(attribute='item') | map(attribute='name') | list
+
+    # cask
+    - name: homebrew-cask のインストール
+      homebrew: name=brew-cask state=latest
+    - name: Caskroom の作成
+      file: path=/opt/homebrew-cask/Caskroom state=directory owner={{ current_user.stdout }} group={{ current_group.stdout }} mode=0755 recurse=yes
+      sudo: yes
+    - name: /opt の作成
+      file: path=/opt state=directory owner=root group=wheel mode=0775
+      sudo: yes
+    - name: cask パッケージをインストール
+      homebrew_cask: name={{ item.name }} state={{ item.state|default('installed') }}
+      with_items: homebrew_cask_packages
+      register: cask_result
+    - name: cask パッケージの情報保存先ディレクトリを作成
+      file: path=cask_info state=directory
+    - name: cask パッケージの情報を保存
+      shell: "{{ homebrew_path_prefix }}/brew-cask info {{ item }} > cask_info/{{ item }}"
+      with_items: cask_result.results | selectattr('changed') | map(attribute='item') | map(attribute='name') | list
+
+
