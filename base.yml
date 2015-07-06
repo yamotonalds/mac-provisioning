@@ -8,6 +8,7 @@
       - homebrew/binary
       - homebrew/dupes
       - caskroom/cask
+      - sanemat/font
     homebrew_packages:
       - { name: readline }
       - { name: openssl }
@@ -23,6 +24,8 @@
       - { name: redis }
       - { name: imagemagick }
       - { name: rlwrap }
+      - { name: tmux }
+      - { name: peco }
     homebrew_cask_packages:
       - { name: google-chrome }
       - { name: google-japanese-ime }
@@ -36,6 +39,8 @@
       - { name: dropbox }
       - { name: alfred }
       - { name: cheatsheet }
+      - { name: shiftit }
+      - { name: bettertouchtool }
       - { name: evernote }
       - { name: flip4mac }
       - { name: keka }
@@ -104,4 +109,20 @@
       shell: "{{ homebrew_path_prefix }}/brew-cask info {{ item }} > cask_info/{{ item }}"
       with_items: cask_result.results | selectattr('changed') | map(attribute='item') | map(attribute='name') | list
 
+    # Ricty
+    - name: xquartz のインストール (for Ricty)
+      homebrew_cask: name=xquartz
+    - name: fontforge のインストール (for Ricty)
+      homebrew: name=fontforge
+    - name: Ricty のインストール
+      homebrew: name=ricty
+    - name: 生成されたフォントファイルをコピー
+      shell: cp -f $(brew --cellar ricty)/*/share/fonts/Ricty*.ttf ~/Library/Fonts/
+      args:
+        creates: ~/Library/Fonts/Ricty-Bold.ttf
+      notify: run fc-cache
+
+  handlers:
+    - name: run fc-cache
+      shell: fc-cache -vf
 
