@@ -25,6 +25,7 @@
       - { name: imagemagick }
       - { name: rlwrap }
       - { name: tmux }
+      - { name: reattach-to-user-namespace }
       - { name: peco }
     homebrew_cask_packages:
       - { name: google-chrome }
